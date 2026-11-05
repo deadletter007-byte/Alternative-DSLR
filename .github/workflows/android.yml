@@ -1,0 +1,52 @@
+name: Build Alternative DSLR APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract Android project
+        run: |
+          mkdir extracted
+          ZIP=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
+
+          if [ -z "$ZIP" ]; then
+            echo "Project ZIP not found"
+            exit 1
+          fi
+
+          unzip -q "$ZIP" -d extracted
+
+          PROJECT=$(find extracted \( -name settings.gradle.kts -o -name settings.gradle \) | head -n 1)
+
+          if [ -z "$PROJECT" ]; then
+            echo "Gradle project not found in ZIP"
+            exit 1
+          fi
+
+          ROOT=$(dirname "$PROJECT")
+          cp -a "$ROOT"/. .
+          ls -la
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Build APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Alternative-DSLR-APK
+          path: app/build/outputs/apk/debug/*.apk
