@@ -1,4 +1,3 @@
-
 name: Build Alternative DSLR APK
 
 on:
@@ -21,7 +20,7 @@ jobs:
             exit 1
           fi
           unzip -q "$ZIP" -d extracted
-          PROJECT=$(find extracted -name settings.gradle.kts -o -name settings.gradle | head -n 1)
+          PROJECT=$(find extracted \( -name settings.gradle.kts -o -name settings.gradle \) | head -n 1)
           if [ -z "$PROJECT" ]; then
             echo "Gradle project not found in ZIP"
             exit 1
