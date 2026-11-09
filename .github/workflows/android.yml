@@ -1,3 +1,4 @@
+
 name: Alternative DSLR Update23 Validation
 
 on:
@@ -76,6 +77,21 @@ jobs:
 
       - name: Run Unit Tests
         run: gradle testDebugUnitTest --stacktrace
+
+      - name: Generate temporary debug keystore
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f debug.keystore ]; then
+            keytool -genkeypair -v \
+              -keystore debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          test -s debug.keystore
 
       - name: Build Debug APK
         if: always()
