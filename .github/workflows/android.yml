@@ -1,32 +1,32 @@
-name: Alternative DSLR Camera Fix Build
+name: Alternative DSLR Update23 Validation
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'Alternative-DSLR-camera-capture-fix.zip'
+      - 'Alternative-DSLR-Update23-Validation-Candidate.zip'
       - '.github/workflows/android.yml'
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
 
     steps:
-      - name: Checkout repository
+      - name: Checkout validation branch
         uses: actions/checkout@v4
 
-      - name: Verify and extract updated source
+      - name: Verify and extract Update23 source
         shell: bash
         run: |
           set -euo pipefail
 
-          ZIP="Alternative-DSLR-camera-capture-fix.zip"
+          ZIP="Alternative-DSLR-Update23-Validation-Candidate.zip"
 
-          test -f "$ZIP"
+          test -s "$ZIP"
           unzip -t "$ZIP"
 
           mkdir -p extracted
@@ -37,33 +37,30 @@ jobs:
 
           cp -a extracted/. "$GITHUB_WORKSPACE"/
 
-          test -f app/build.gradle.kts
-
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
 
-      - name: Create temporary debug signing key
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
         run: |
-          keytool -genkeypair -v \
-            -keystore debug.keystore \
-            -storepass android \
-            -alias androiddebugkey \
-            -keypass android \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
+          sdkmanager "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.3.1'
 
-      - name: Build debug APK
+      - name: Run Unit Tests
+        run: gradle testDebugUnitTest --stacktrace
+
+      - name: Build Debug APK
         run: gradle assembleDebug --stacktrace
 
       - name: Verify APK
@@ -78,21 +75,19 @@ jobs:
           ls -lh "$APK"
           sha256sum "$APK" | tee app-debug.sha256
 
-          BUILD_TOOLS="$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
+          BUILD_TOOLS="36.0.0"
 
           "$ANDROID_HOME/build-tools/$BUILD_TOOLS/aapt" \
             dump badging "$APK" | head -n 5
 
-      - name: Upload APK
+      - name: Upload APK and test reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Alternative-DSLR-Camera-Fix-APK
+          name: Alternative-DSLR-Update23-Validation-Results
           path: |
             app/build/outputs/apk/debug/app-debug.apk
+            app/build/reports/tests/
             app-debug.sha256
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
-
-      - name: Run unit tests
-        continue-on-error: true
-        run: gradle testDebugUnitTest --stacktrace
