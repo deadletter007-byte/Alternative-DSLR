@@ -24,15 +24,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           ZIP="Alternative-DSLR-camera-repair-pass1.zip"
           test -f "$ZIP"
           unzip -t "$ZIP"
+
           mkdir -p extracted
           unzip -q "$ZIP" -d extracted
 
           mapfile -t PROJECT_FILES < <(
             find extracted -type f \
-            \( -name settings.gradle.kts -o -name settings.gradle \)
+              \( -name settings.gradle.kts -o -name settings.gradle \)
           )
 
           if [ "${#PROJECT_FILES[@]}" -ne 1 ]; then
@@ -53,6 +55,18 @@ jobs:
           java-version: '17'
           cache: gradle
 
+      - name: Create temporary debug signing key
+        run: |
+          keytool -genkeypair -v \
+            -keystore debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -68,10 +82,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           APK="app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
+
           ls -lh "$APK"
           sha256sum "$APK" | tee app-debug.sha256
+
           "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)/aapt" dump badging "$APK" | head -n 5
 
       - name: Upload APK
