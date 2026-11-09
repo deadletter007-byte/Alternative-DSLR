@@ -24,19 +24,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           ZIP="Alternative-DSLR-Update23-Validation-Candidate.zip"
-
           test -s "$ZIP"
           unzip -t "$ZIP"
-
           mkdir -p extracted
           unzip -q "$ZIP" -d extracted
-
           test -f extracted/settings.gradle.kts
           test -f extracted/app/build.gradle.kts
-
           cp -a extracted/. "$GITHUB_WORKSPACE"/
+
+      - name: Apply Kotlin import correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE="app/src/main/java/com/example/MainViewModel.kt"
+          if ! grep -q '^import kotlinx.coroutines.withContext$' "$FILE"; then
+            sed -i '/^import kotlinx.coroutines.launch$/a import kotlinx.coroutines.withContext' "$FILE"
+          fi
+          grep -n '^import kotlinx.coroutines.withContext$' "$FILE"
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -48,17 +53,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
-
-          if [ -z "$SDK" ]; then
-            echo "Android SDK not found"
-            exit 1
-          fi
-
+          test -n "$SDK"
           echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
-
           test -d "$SDK/cmdline-tools"
           test -d "$SDK/platform-tools"
 
@@ -66,18 +64,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
-          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" \
-            -type f -name sdkmanager | head -n 1)"
-
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
           test -x "$SDKMANAGER"
-
           yes | "$SDKMANAGER" --licenses || true
-
-          "$SDKMANAGER" \
-            "platform-tools" \
-            "platforms;android-36" \
-            "build-tools;36.0.0"
+          "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -94,16 +84,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           APK="app/build/outputs/apk/debug/app-debug.apk"
-
           test -s "$APK"
-
           ls -lh "$APK"
           sha256sum "$APK" | tee app-debug.sha256
-
-          "$ANDROID_HOME/build-tools/36.0.0/aapt" \
-            dump badging "$APK" | head -n 5
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | head -n 5
 
       - name: Upload APK and Test Reports
         if: always()
