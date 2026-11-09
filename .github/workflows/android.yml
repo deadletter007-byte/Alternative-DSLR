@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'Alternative-DSLR-Update23-Validation-Candidate.zip'
+      - 'Alternative-DSLR-Update23-Validation-Candidate-v2.zip'
       - '.github/workflows/android.yml'
 
 permissions:
@@ -24,7 +24,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ZIP="Alternative-DSLR-Update23-Validation-Candidate.zip"
+          ZIP="Alternative-DSLR-Update23-Validation-Candidate-v2.zip"
           test -s "$ZIP"
           unzip -t "$ZIP"
           mkdir -p extracted
